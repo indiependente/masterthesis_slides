@@ -1,0 +1,1627 @@
+SIAM J. COMPUT.
+Vol. 22, No. 5, pp. 1087-11 16, October 1993
+
+@ 1993 Society for Industrial and Applied Mathematics
+011
+
+POLYNOMIAL-TIME APPROXIMATION ALGORITHMS
+FOR THE ISING MODEL*
+MARK JERRUMt AND ALISTAIR SINCLAIRt
+
+Abstract. The paper presents a randomised algorithm which evaluates the partition function of an arbitrary
+ferromagnetic Ising system to any specified degree of accuracy. The running time of the algorithm increases only
+polynomially with the size of the system (i.e., the number of sites) and a parameter which controls the accuracy of
+the result. Further approximation algorithms are presented for the mean energy and the mean magnetic moment of
+ferromagnetic Ising systems.
+The algorithms are based on Monte Carlo simulation of a suitably defined ergodic Markov chain. The states
+of the chain are not, as is customary, Ising spin configurations, but spanning subgraphs of the interaction graph of
+the system. It is shown that the expectations of simple operators on these configurations give numerical information
+about the partition function and related quantities.
+The performance guarantees for the algorithms are rigorously derived and rest on the fact that the Markov chain
+in question is rapidly mixing, i.e., converges to its equilibrium distribution in a polynomial number of steps. This is
+apparently the first time that rapid mixing has been demonstrated at all temperatures for a Markov chain related to
+the Ising model.
+
+Key words. the Ising model, statistical physics, ferromagnetism, spin-glasses, partition function, #P-completeness,
+approximation algorithms, Markov chains, rapid mixing, Monte Carlo simulation
+
+AMS subject classifications. 05C85, 60J10, 60J20, 60K35, 68Q20, 68Q25, 82820, 82831, 82880
+
+1. Summary. This paper is concerned with computational solutions to a classical com-
+binatorial problem of statistical physics. Generally known as the /sing model, the problem
+has been the focus of much attention in the physics and mathematics communities since it was
+first introduced by Lenz [24] and !sing [14] in the early 19208. We will not present a detailed
+historical account here; a very readable survey is given by Cipra [6], while Welsh [30] sets the
+Ising model in the context of other combinatorial problems in statistical physics.
+The problem is easily stated. Consider a collection of sites [n] = {O, 1, . . . , n - 1}, each
+pair i , j of which has an associated interaction energy ViJ' . in most cases of physical interest,
+the set E of pairs with nonzero interaction energies forms a regular lattice graph ([n], E). A
+conjiguration is an assignment of positive (st = +1) and negative (st = -1) spins to each
+site i e [n]. The energy of a configuration s = (st ) is given by the Hamiltonian
+
+H (s) - - ~ VijSiSj - B ~ sk,
+{i,J`}eE k~--[n]
+
+where B is an external field.
+In the case where all interaction energies are nonnegative, such a system models the
+behaviour of a ferromagnet; in fact, it was towards an understanding of spontaneous magne-
+tization that the model was first conceived. However, the Ising model has since become a
+powerful paradigm for the investigation of more general cooperative systems in which short-
+range interactions between elements can give rise to long"'range order.
+The central problem is to compute the partition function
+Z `-Z(Vi j , B, i6) -, ) ~exp(-bH(s)),
+
+
+*Received by the editors February 10, 1992; accepted for publication (in revised form) March 30, 1992. An
+extended abstract of this paper appeared in the "f roceedings of the International Colloquium on Automata, Lan-
+guages and Programming," Warwick, United Kingdom, July 1990; published by Springer-Verlag as Lecture Notes in
+Computer Science, Vol. 443.
+t Department of Computer Science, University of Edinburgh, The King~s Buildings, Edinburgh EH9 3JZ, Scot-
+land.
+
+1087
+
+
+
+1088
+
+MARK JERRUM AND ALISTAIR SINCLAIR
+
+where b > 0 is related to the temperature and the sum is over all possible configurations
+s. Almost all the physical properties of the system can be computed from knowledge of Z.
+Essentially, Z is the normalising factor in the calculation of probabilities: according to the
+fundamental theory of statistical mechanics, the probability that the system in equilibrium
+is found in configuration s is exp(-BR (s))/Z. Moreover, certain logarithmic derivatives
+of Z correspond to quantities such as the mean energy and the mean magnetic moment.
+Singularities in these derivatives generally correspond to phase transitions, when a small
+change in a parameter has an observable effect on the macroscopic properties of the system.
+The search for efficient computational solutions to these problems has proved extremely
+hard and has generated a vast body of literature. A major breakthrough was achieved in the
+early 1960s by Kasteleyn [19] and Fisher [11], who reduced the problem of computing Z
+for any p/anar Ising system (i.e., one whose graph ([n], E) of nonzero interactions is planar)
+to the evaluation of a certain determinant. This must rank as one of the highlights in the
+field of combinatorial algorithms. It remains the state of the art as far as exact solutions are
+concerned; in particular, it does not appear to generalise to nonplanar systems. On the other
+hand, a huge amount of computational effort is poured into numerical solutions of the Ising
+model for three-dimensional regular lattices and other nonplanar systems. The problem is that
+the methods used here, while ingenious, generally lack a rigorous theoretical base and rely for
+their validity largely on physical intuition.
+In this paper, we exhibit what we believe to be the first provably efficient approximation
+algorithm for the partition function of an arbitrary ferromagnetic Ising system. By "efficient"
+here we mean that the algorithm is guaranteed to run in time polynomial in the number
+of sites n. The algorithm is a fu//y po/ynomial randomised approximation scheme (fpras),
+i.e., it will produce solutions which, with very high probability, fall within arbitrarily small
+error bounds specified by the user, the price of greater accuracy being a modest increase in
+runtime. We also show that such an algorithm is essentially the best one can hope for, in
+the sense that the existence of an efficient exact algorithm for the problem, or even of an
+efficient approximation algorithm for the nonferromagnetic case, would have devastating and
+far-reaching consequences in the theory of computation.
+From the point of view of theoretical computer science, our result provides a new example
+of a significant combinatorial enumeration problem which is #P-complete, and hence appar-
+ently intractable in exact form, but for which an efficient approximation algorithm exists. This
+is an intriguing class of problems, and includes the problems of computing the volume of a
+convex body [9], the partition function of a monomer-dimer system [16], and the permanent
+of a large class of 01 matrices [16]. Our algorithm is also of interest in its own right as a
+further application of the general technique of simulating an ergodic stochastic process whose
+rate of convergence can be analysed. This approach has recently attracted much attention, and
+its full algorithmic potential is only now becoming apparent.
+The idea is the following. In order to compute weighted combinatorial sums, such as the
+Ising partition function, it is often enough to be able to sample configurations s at random with
+probabilities proportional to their weights, in this case exp(-b H (s)). This can be achieved
+by setting up an ergodic Markov chain whose states are configurations and whose transitions
+correspond to small local perturbations. If the chain is designed so that the equilibrium
+distribution to which it converges is the desired weighted distribution over configurations,
+then we get a random sampling procedure by simulating the chain for some number of steps
+and outputting the final state. For such a procedure to be efficient, the chain must be rapidly
+mixing in the sense that it gets very close to equilibrium after a small (i.e., polynomial) number
+of steps. This is a highly nontrivial requirement, since the number of states is exponentially
+large. Recent developments have provided appropriate analytical tools for establishing the
+rapid mixing property for chains of this kind [27], [29], [7], [28].
+
+
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+
+1089
+
+The Markov chain simulation approach to the Ising model is far from new: Under the
+name of the Monte Carlo method, this technique has been applied extensively to a whole range
+of problems in statistical physics (see, e.g., [41). The problem with the approach, however, is
+that it appears very difficult to define a Markov chain on Ising spin configurations s which is
+rapidly mixing; indeed, the chains which are frequently used in practical simulation studies
+clearly do not have this property.
+We overcome this obstacle by transforming the problem to an entirely new domain,
+where the configurations are spanning subgraphs of the interaction graph ([n], E). Each
+subgraph has an "energy" which is determined by weights attached to its edges and vertices.
+Although there is no direct correspondence between configurations in the two domains, and
+the subgraph configurations have no obvious physical significance, the two partition functions
+are, remarkably, very closely related. Moreover, and crucially, there is a natural Markov chain
+on the subgraphs with the appropriate equilibrium distribution which is rapidly mixing. Thus
+the Markov chain approach can be made to work efficiently in the new domain.
+The above transformation is a classical result [26], often known as the "high-temperature
+expansion" of the Ising model partition function. However, the idea of viewing the graphs
+in this expansion as a statistical mechanical system which forms the basis of a Monte Carlo
+simulation appears to be new. To the best of our knowledge, our results represent the first
+rigorous proof of rapid mixing at all temperatures for a Markov chain related to the Ising model.
+Moreover, this property is entirely independent of the interaction topology and relies on no
+assumptions of any kind. We therefore believe that the chain deserves further investigation as
+a potentially powerful experimental tool.
+The mechanism by which we use sampling of subgraph configurations to compute
+the partition function is perhaps of independent interest. This is achieved by subjecting an
+Ising system with fixed interactions and at a fixed temperature to varying external fields. By
+observing a small number of configurations, randomly selected at appropriately chosen values
+of the field, we are able to get an accurate estimate of Z. It is significant that this idea is
+motivated by combinatorial considerations and does not correspond to any obvious physical
+intuition.
+As mentioned earlier, it is often derivatives of the partition function, rather than the
+function itself, which are of primary interest. For example, two important quantities are the
+mean energy E - -8(In Z) / ab, and the mean magnetic moment M - b-18(In Z)/aB. Our
+approximation algorithm for Z says nothing about our ability to compute these quantities
+accurately. However, it turns out that both E and M can be expressed in terms of expectations
+of certain simple operators on configurations in the subgraphs domain. Thus estimates of E
+and M can be read off from our configuration sampling algorithm, though again we may have
+to vary the external field in order to maximise the accuracy of the statistical experiment. As
+a result, we get a fpras for both E and M as well. We regard this as confirmation that our
+approach to the Ising model is robust and computationally effective.
+The remainder of the paper is organised as follows. In ~2 we describe the transformation
+of the Ising model to the new domain in which configurations are spanning subgraphs of
+the interaction graph. Section 4 is devoted to a discussion of the Markov chain on these
+configurations, and in particular to a proof that it is rapidly mixing. This fact is used in ~3 to
+construct a fpras for the partition function of an arbitrary ferromagnetic Ising system, and in
+~5 to construct efficient approximation algorithms for the mean energy and the mean magnetic
+moment. Finally, in ~6 we present strong evidence that our results are, in a precise theoretical
+sense, best possible.
+2. The spins world and subgraphs world. Recall that our primary aim is to construct
+an algorithm for the following problem:
+
+
+
+1090
+
+MARK JERRUM AND ALISTAIR SINCLAIR
+
+INSTANCE:  A real symmetric matrix (ViJ' : i ,  j  e [n]) of interaction energies, a real number
+B (the external field),                                                       and a positive real number b.
+OUTPUT:  The Ising partition function
+
+(1)
+
+Z `- Z(Vi j , B, b) `, ~ exp(-bH (s)),
+s~{-I,+I)n
+where the Hamiltonian H (s) is given by
+
+H (s) - - ~ VijSi SJ - B ~ sk,
+{i , J"JeE k(X--[n]
+and E is the set of unordered pairs {i, j} with ViJ' ~ 0.
+
+Our algorithm will address the ferromagnetic case of the Ising model, which is characterised
+by the interaction energies Vij being nonnegative. Furthermore, rather than attempting to
+evaluate the partition function exactly, we shall content ourselves with a close approximation.
+The phrase "close approximation" will be given a precise meaning in the next section.
+One strategy, which has been applied successfully to problems of this type and has, for
+example, been used to estimate the partition function of a general monomer-dimer system [27],
+[161, involves the simulation of an appropriately defined Markov chain. A direct application of
+this strategy to the !sing partition function would proceed as follows. View the configurations
+of the Ising system, namely, the 2" possible spin vectors s e {-1, +I}n , as the states of
+a Markov chain. Choose transition probabilities between states so that the Markov chain
+is ergodic and so that, in the stationary distribution, the probability of being in state s is
+Z-1 exp(-bu(s)) . A reasonable way to achieve this, and one which is often used in practice,
+is to allow transitions to occur between spin configurations which differ in just one component,
+and to choose transition probabilities according to the Metropolis rule [20]. If the resulting
+Markov chain is rapidly mixing, that is, if it converges rapidly to the stationary distribution
+regardless of the choice of initial state, then it can be used effectively to sample configurations
+s from a distribution which is close to the stationary distribution. By collecting enough sample
+configurations, using different values of B and b, it should then be possible to estimate the
+partition function Z with good accuracy.
+Unfortunately, it transpires that the Markov chain described, and which we refer to as the
+spins-world process, is not rapidly mixing. It is well known that ferromagnetic Ising systems
+typically exhibit a phase transition at a certain value of the parameter b; for values of b above
+this critical value, the system settles into a state in which there is a preponderance of spins of
+one or other sign. Transitions between the majority +1 states and majority -1 states occur
+very infrequently, simply because the stationary distribution assigns small total weight to the
+configurations with balanced spins. (Informally, the state space has a constriction separating
+the majority + I states and the majority -1 states.) Although it could be argued that the barrier
+to rapid mixing just described is somewhat trivial, there exist other more subtle barriers that
+apparently cannot be surmounted.
+The problem caused by the absence of rapid mixing in the spins-world process can be cir-
+cumvented by simulating a different Markov chain, which we refer to as the subgraphs-world
+process. The two Markov chains are structurally very different; furthermore, the subgraphs-
+world process has, as far as we are aware, no direct physical significance. However, the
+subgraphs-world process has a close connection with the !sing partition function and, cru-
+cially in the current application, is rapidly mixing. For the time being, we content outselves
+with describing the subgraphs-world configurations and associated partition function. The
+description of the subgraphs-world process itself is deferred to ~4.
+
+
+
+1091
+
+APPROX][MATION ALGORITHMS FOR THE ISING MODEL
+
+We say that a subgraph is spanning if it includes all the vertices of the parent graph. (Note
+that spanning subgraphs are not, in general, connected.) The subgraphs-world configurations
+are spanning subgraphs of the interaction graph ([n], E). In the sequel we shall drop the
+adjective "spanning" where it seems safe to do so, and frequently identify a spanning subgraph
+([n], X) with the set X of edges which define it. To simplify notation, let
+
+(2)
+
+li j `- tanh bViJ. and tL `- tanh bB
+
+Each configuration X ~ E is assigned a weight according to the formula
+
+w (X) `- ml.ddC X)I n lij ,
+{i , j}~X
+
+(3)
+
+where the notation odd(X) stands for the set of all odd-degree vertices in the graph X. The
+subgraphs-world partition function is simply
+
+(4)
+
+The above sum is generally known as the "high-temperature expansion."
+It          is a surprising fact that the spins- and subgraphs-world partition functions Z and Z' are
+related in a simple way. Define
+
+(5)
+
+A `, (2 cosh bB)" n cosh bViJ` ,
+{i ,J}~ E
+
+and note that A is an easily computed function of the parameters that specify the Ising system.
+The following classical result [26] relates the two partition functions.
+THEOREM I . Z = AZ'.
+In recognition of the central role it plays in our algorithm, we present a full proof of this
+result below.
+Theorem 1 prompts us to consider a statistical mechanical system whose configurations
+are spanning subgraphs of ([n], E). We shall define a Markov chain whose states are these
+configurations, and whose stationary distribution assigns probability p(X) = w(X)/Z' to
+configuration X. This subgraphs-world process will be analysed in detail in ~4 and shown to
+be rapidly mixing. Hence it will provide us with an efficient means of sampling subgraphs-
+world configurations with probabilities roughly proportional to their weights. Since Z' is
+a weighted sum of the configurations, we might expect such a procedure to give us useful
+information about Z' itself, and hence about the original spins-world partition function Z.
+The next section confirms that this is indeed the case.
+Proof of Theorem 1. Taking (1) as a starting point, apply the identity ex = coshx(1 +
+tanhx) to recast the partition function in the form
+
+Z " 2-"A S n {1 + tanh(bViJsisJ )} n{1 + tanh(bBsk)},
+s~{-1, +1}" {i , ]'}XE ke[n]
+
+where A is defined in (5). Note that the spin variables sk disappear from the expression for A
+because sk = :::i::I for all k, and coshx is an even function. Similarly, since tanhx is an odd
+function, the spin variables may be brought outside allowing Z to be rewritten as
+
+Z `, 2-" A S n {I + sisJ tanh bVj } n {I + sk tanh bB}.
+s ti , J'le E ktX[n}
+
+
+
+1092
+
+MARK JERRUM AND ALISTAIR SINCLAIR
+
+Expanding the two products, and changing variables according to (2), we obtain
+
+Z " 2-" A S S ( H I,Jsi s,' ) S (Hmsk ) ,
+s x~E \ {i , j } eX | U ~{n I \ keU |
+which, on interchanging the order of summation, yields
+
+(6)
+
+where
+
+W(U, X, s) " H msk H liJsisJ.
+k{XU {i , ]}XX
+
+Now we claim that Ss W(U, X, s) -` O unless X is a graph in which all vertices in U have
+odd degree, and all vertices in [n] - U have even degree. To see this, fix U and X, and let
+k e [n] be such that either k ~ U and has even degree in X or k ~ [n] - U and has odd degree
+in X. For any vector s ~ {-1, +1}", let s(k> denote the vector derived from s by inverting
+the sign of the kth component. Then the terms W(U , X, s) and W(U, X, s(k>) are equal in
+size but opposite in sign. Hence the terms of the sum Ss W(U, X, s) cancel out in pairs.
+Conversely, suppose that X is a graph in which all vertices in U have odd degree and all
+vertices in [n] - U have even degree. Then, for all s e {-1, +I}n and k ~ [n], the terms
+W(U , X, s) and W(U, X, s(k>) are equal. Thus the value of W(U, X, s) is independent of s
+and
+
+S W (U , X, s) - 2"mlU~ H li," -, 2"w(X).
+s ti , J'}tXX
+
+Finally, substituting for Ss W(U, X, s) in (6) we obtain the identity Z = A Sx~E W(X), as
+required. []
+3. Estimating the partition function. The aim of this section is to present an efficient
+approximation algorithm for computing the partition function Z of a ferromagnetic Ising
+system. The section is structured as follows. First, we define precisely what we mean by an
+efficient approximation algorithm. Then we state, without proof, the properties of the sampling
+procedure for subgraphs-world configurations which plays a key role in our algorithm: the
+construction and analysis of this procedure, based on a suitably denned Markov chain, is left
+to the next section. Finally, we explain how to use samples produced by this procedure to
+obtain a reliable approximation of Z.
+Our definition of an efficient approximation algorithm is a very demanding one, following
+Karp and Luby [18] and others. For nonnegative real numbers a, &, ~, we say that & approxi-
+mates a within ratio 1 + 6 if a(1 + E)-I ~ d ~ a(1 + E). Let f be any function from problem
+instances to real numbers. (The Ising partition function is an example of such a function.) A
+randomised approximation scheme for f is a probabilistic algorithm which, when presented
+with an instance x and a real number ~ E (O, 1], outputs a number which, with high probability,
+approximates f (x) within ratio (I + ~). We shall take the phrase "with high probability" to
+mean with probability at least 3/4. This is because a failure probability of 1/4 can be reduced
+to any desired value d > O by performing only O (log 8-1) trials and taking the median of
+the results [17]. (This claim is also justified in the following proof of Lemma 3.) Of course,
+it is not enough just to obtain an accurate result with high reliability; the result must also be
+obtained efficiently. Accordingly, we call an approximation scheme fu//ypo/ynomial if it runs
+
+
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+
+1093
+
+in time polynomial in ~- I and the size of the problem instance x. The reader will appreciate
+that a fully polynomial randomised approximation scheme, or fpras, embodies a strong notion
+of efficient approximation.
+With an eye to simplicity of presentation, we shall not concern ourselves with the errors
+which arise through the inexact nature of computer arithmetic. Instead, we shall assume a
+computational model in which real arithmetic is performed with perfect accuracy, and in which
+arithmetic operations and standard functions, such as exp, are charged at unit cost. After all,
+we are aiming only at an approximate evaluation of the partition function, and it will become
+apparent that our technique does not rely on intermediate computations being carried out to
+untoward accuracy. Again with simplicity in mind, we will take n, the number of sites, as the
+size of the problem instance, even though the number of parameters to the model would be a
+more reasonable measure from an information-theoretic point of view.
+As we already mentioned, our approximation algorithm for Z is based on a sampling
+procedure for subgraphs-world configurations. We must now be more precise about the prop-
+erties of the sampling procedure. For a ferromagnetic Ising system (lij , ~), with lij and ~ as
+defined in (2) of the previous section, let W denote the set of subgraphs-world configurations,
+i.e., the set of spanning subgraphs of the interaction graph ([n], E), and define the probabil-
+ity distribution P over W by P (X) = w(X)/ Sx, w(X') - w(X)|Z', where w is the weight
+function defined in (3). (Note that, since the system is ferromagnetic, w(X) ~ 0 for all X ~ W,
+so P is a probability distribution.) We wish to formalise the notion of an algorithm which,
+given a ferromagnetic system, selects a configuration from a distribution which is "close to"
+P. A generator for subgraphs-world configurations is a probabilistic algorithm which takes
+as input a ferromagnetic !sing system in the form (lij , ~}, plus a positive real tolerance d, and
+outputs an element of W drawn from a distribution p satisfying
+
+Here || ' || denotes variation distance, i.e.,
+
+It turns out to be possible to construct an efficient generator for subgraphs-world config-
+urations, as the following theorem states.
+THEOREM 2. There exists a generator for subgraphs-world conjigurations which, on
+inputs (liJ' , ~) and 8, runs in time bounded by apolynomial in n, IL-1 , and log d-1 . Spec~catty,
+the runtime of the generator is O(m2~-8 (log d-1 + m)) , where m - | E / is the number of
+nonzero interactions.
+Remarks. (i) The presence of ~- I in the time bound implies that the generator is inefficient
+for systems with a very small external field. This dependence on the field is inessential and
+can be removed with a little extra work (see Theorem 10 of ~5).
+(ii) Efficient generators for combinatorial structures, of which the above is a particular
+example, are discussed in a general framework in [271, [291.
+The construction of a generator with the above properties, based on simulation of a
+suitably denned Markov chain, is described and justified in detail in the next section. For
+the moment we will simply assume Theorem 2 and concentrate on showing how samples
+produced by the generator can be used to obtain an efficient approximation algorithm for the
+partition function Z(ViJ' , B, b). Our approach, which we now describe, is an instance of a
+computational technique which will be employed repeatedly in this paper.
+Suppose we want to estimate the value of some physical quantity associated with a ferro-
+magnetic !sing system. The first step is to express the quantity as the expectation of a suitably
+
+
+
+1094
+
+MARK JERRUM AND ALISTAIR SINCLAIR
+
+defined random variable over configurations in the subgraphs world. Then we can estimate
+the quantity by sampling configurations at random, with the aid of the generator of Theorem
+2, and by computing the sample mean.
+More precisely, let f be a nonnegative real-valued function defined on the set W of
+subgraphs-world configurations of a ferromagnetic Ising system. Vlewing W as a sample
+space with probability distribution 7r(X) = w(X)/Z', the function f becomes a random
+variable with expectation
+
+It is a simple matter to get an estimate of E( f ) using the generator of Theorem 2: Con-
+struct an independent sample {Xi } of configurations, of size s, and compute the sample mean
+s-I S i f (Xi ) . Provided the tolerance input to the generator is small, this will be an almost
+unbiased estimator of E( f ). By making the sample size s large enough, we can achieve any
+desired degree of accuracy with reasonable confidence. Moreover, we may drastically reduce
+the probability that the estimator falls outside the acceptable range of accuracy by repeating
+the entire process t times and taking the median of the t results.
+The efficiency of such an experiment depends on how large the numbers s and t must be
+in order to achieve a specified accuracy with specified confidence. This in tum depends on the
+variance of the random variable f , or more precisely on the quantity max( f ) /E( f ) , where
+max( f ) denotes the maximum value of f on W. The next lemma quantifies these effects; the
+proof is straightforward and is left until the end of the section.
+LEMMA 3. Let f be a nonnegative real-valued random variable dejined on the set W of
+subgraphs-world conjigurations of a ferromagnetic Ising system, and let ~ , h be real numbers
+with 0 < ~ _< I and 0 < h ~ I/2. Then there is an experiment of the form described above
+which uses a total of 504~-2 fig h-ll max( f ) /E( f ) samples from the generator, each with
+input (lij , ~} and tolerance d - ~E( f ) / 8 max( f ) , and produces an output Y salts~ing
+
+Pr(Y approximates E( f ) within ratio 1 + ~) ~ 1 - h.
+
+Lemma 3 makes it clear that, whenever we employ the above technique, we will need
+to ensure that the ratio max( f )/E( f ) is not too large for the random variable f under con-
+sideration. In particular, our criterion for efficiency demands that the ratio be bounded by a
+polynomial function of n, the size of the system.
+We tum now to an explanation of how the technique can be applied to compute the partition
+function Z(Vij , B, b). Recall from Theorem I of the previous section that Z = AZ', where
+A is simple to evaluate directly. We therefore concentrate on computing Z'. Our first step is
+to write Z' explicitly as a function of ~ as follows:
+
+Ln|2|
+Zr-  Zr(IL) -   S  m'~d(X)I      [-[      liJ'  -   S  Ckm2k.
+x~E                      {i, j}tXX                   k-O
+
+(7)
+
+Note that only even powers of ~ need be included in the sum since the number of odd-degree
+vertices in a subgraph X is necessarily even. We are thus viewing Z' as a polynomial in ~2
+with coefficients
+
+(8)
+
+Ck- S G[ lij'
+X:|odd(X)1-2k {i, j}eX
+
+
+
+APPROXIMATION ALGORITIfMS FOR THE ISING MODEL
+
+1095
+
+In the ferromagnetic case all the ck are positive, so Z'(~) is an increasing function of tl .
+Clearly the coefficients ck actually depend on the liJ , and hence on the interactions ViJ. of
+the system and on the parameter b. However, in what follows we will regard these quantities,
+and therefore also the coefficients, as fixed, and consider what happens when ll is varied. In
+spins-world terminology, this corresponds to subjecting a system with fixed interactions and
+at a fixed temperature to a varying external field. Our task is to evaluate the partition function
+at a specified external field value B. By the above discussion, this is reduced to evaluating the
+polynomial Z'(/I ) = S ck/l 2k at the point ~ = tanhbB.
+Our starting point is the observation that the value of Z'(/I) at tl = 1 can be computed
+directly. To see this, note from (7) and (8) that
+
+Lnl2J
+Z'(1) = S Ck - S    n    li j  -      l-l    (1 + liJ ).
+k-o          Xc_ E  {i , j }(XX              {i , j }eE
+
+(9)
+
+We are now going to relate the desired value Z'(tanh bB) to Z'(1) using the values of Z'(/I)
+at certain intermediate points tanhbB < /I < 1.
+The mechanism for relating the values of Z' at two points tl = ~o and ~ = ~I , with
+1 ~ ~o > I 1 ~ 0, is the following. Consider the random variable f ( X) = (ll 1 /~O)lodd(X)1
+over configurations of the system at ~ = /lo. The expectation of f is given by
+
+(Here and in the sequel we will use notation such as E~o(f) to indicate that the expectation
+is taken with respect to a particular value of /I, in this case /lo). Hence we can estimate the
+quantity Z'(/I I)/Z'(/lo) using the sampling technique discussed earlier. By Lemma 3, this
+process will be efficient provided the ratio max( f )/Emo ( f ) is not too large. Clearly, this cannot
+be guaranteed for arbitrary values of ~o and ~I . However, if the values are reasonably close
+together, then the ratio is bounded rather tightly, as we now show. First, note that certainly
+max( f ) ~ 1. It is therefore enough to obtain a lower bound on the expectation E~o(f ). Such
+a bound is provided by the next lemma, whose proof we defer to the end of the section.
+LEMMA 4. Let ILo and ll1 be arbitrary real numbers in the range [0, ll salts~ing ll 1 <
+tlo _< ll I + n-I . Then the ratio Z'(ll I)/Z'(/`to) is bounded below by 1|10.
+Lemma 4 suggests that we should be able to bootstrap the known value Z'(1) to the desired
+value Z'(tanh BB) by performing statistical experiments at a sequence of intermediate values
+of tl which are a distance n- I apart. Specifically, let r < n be the natural number satisfying
+
+n-r                      n-r -1
+  > tanhbB ~ - ,
+n n
+
+(10)
+
+and define the sequence (~k) for 0 ~ k ~ r + 1 by
+
+| (n` k)|n for 0 _< k ~ r;
+llk - i
+| tanhbB for k - r +1.
+
+(11)
+
+Note that ~k IE [0, 1] and /Ik+1 < tlk ~ ILk+1 + n-I . Hence by the above discussion we may
+estimate the ratio Z'(/Ik+I)/Z'(~k) efficiently for each k. This is enough to yield an estimate
+of Z'(tanh bB) , since we have
+
+Z'(tanhbB) - Z'(I) x ~ Z~) .
+
+(12)
+
+
+
+1096
+
+MARK JERRUM AND ALISTAIR SINCLAIR
+
+We are now in a position to give our approximation algorithm for the partition function Z.
+We assume that the input consists of a ferromagnetic Ising system in the form (ViJ , B , b) , and a
+positive real e ~ (0, 1] which specifies the desired accuracy. As usual, we set liJ = tanh bViJ .
+Step 1. Compute A - (2 cosh bB)" H{i,J 3eE cosh bViJ , and Z'(I) - Hti,J3~E (I + liJ ).
+Step 2. Define the sequence (~k) for 0 ~ k _< r + 1 as in (10) and (II) above. For each
+k = 0, 1, . . . , r in tum, do the following:
+Let f (X) -` (~k+I|~k)lodd(X)I for each subgraphs-world configuration X, so
+that Emk(f ) - Z'(~k+1)/Z'(luk). Using the technique of Lemma 3 applied to
+the system at ~ = ~k, with ~ - e|2n and h - I/4n, compute a quantity Yk
+satisfying
+Pr(Yk approximates Z'(~k+1)/Z'(~k) within ratio 1 + 6/2n) ~ 1 - I/4n.
+
+Step 3. Output the product
+
+A x Zr(1) x k__~ Yk.
+
+THEOREM S. The above algorithm is an fpras for the partition function Z of a ferromag-
+netic ]sing system.
+Proof. The output of the algorithm is the product of the quantities A and Z'(1), computed
+exactly in Step 1, together with r + I _< n random variables Yk arising from experiments in
+Step 2. From (12) and the property of the Yk expressed in Step 2, it is immediate that the
+product approximates Z(ViJ , B, b) within ratio (I+ ~|2n)n _< I + ~ with probability at least
+(I - 1|4n)n ~ 3|4. It remains only to show that the runtime of the algorithm is bounded by
+a polynomial in n and E-I.
+Steps 1 and 3 can clearly be executed in time O(n2). Now consider the operation of
+Step 2 for a particular value of k. Appealing to Lemmas 3 and 4, we see that the process
+of computing the estimate Yk requires N - 20160E -2n2 [Ig 4nl calls to the generator of
+Theorem 2. Moreover, the tolerance supplied on each call is d - e|160n, and the value of
+~ is never less than n-I . It follows from Theorem 2 that the runtime of each call is bounded
+by q(n, ~-I) for some polynomial q(., '). The total execution time of Step 2 is therefore
+O(nNq(n, e-I)), which is a polynomial function of n and c-l. The algorithm therefore
+satisfies all the requirements of an fpras. $
+Remarks. (i) The statement of Theorem 2 actually gives an upper bound on the polyno-
+mial q appearing at the end of the above proof. From this, it is easily seen that the overall
+runtime of the fpras of Theorem 5 is O (e-2m2nl I log n(log(e -In)+m)). Now we may assume,
+without loss of generality, that ~ ~ 2-m , since otherwise we can evaluate Z exactly by brute
+force in time O (me -I). Hence the expression for the runtime simplifies to O (e -2m3n1l log n).
+(See also the remark following the proof of Theorem 7 at the end of the next section.)
+(ii) Closer analysis reveals that the sequence of coefficients (ck) of the polynomial ex-
+pression (7) for Z' is log-concave, i.e.,
+
+Ck+lCk-1 _< C~ for k - 1, 2, . . . , [_n|2j - 1.
+(The proof makes use of the ideas introduced in the proof of Theorem 7 of the next section.)
+This is a surprising result in its own right, since naturally occurring log-concave sequences are
+quite rare in combinatorics. It also suggests an alternative method for approximating z: By
+log concavity, for each k it is possible to choose a value of ~ which assigns to configurations
+with precisely k pairs of odd-degree vertices the largest aggregated weight. This in tum means that we can read off all significant coefficients ck by sampling at appropriate values of it, again
+using Z' (1) as a reference value. (An analogous approach was used in [27], [16] to obtain
+the coefficients of a polynomial related to matchings, or monomer-dimer configurations, in
+a graph.) This method is both more complex and rather less efficient than the one presented
+in Theorem 5. However, it does supply more detailed information about Z, in the form of
+the coefficients of Z'. We have been unable to determine whether these quantities have any
+inherent physical significance, so we will not present the alternative algorithm in detail here.
+We close the section by providing the missing proofs of Lemmas 3 and 4.
+Proof of Lemma 3. Let Var(f) denote the variance of f , i.e., Var(f) = E(f 2) — f)2
+The generator of Theorem 2 selects elements of Q from a distribution p which is slightly dif-
+ferent from 7r . Accordingly, define the mean and variance of f with respect to this distribution
+by
+E'(f) = E P(X) f (X);
+xEs2
+Var'( f) E p(X) f (X)2 — E'(f)2.
+XES2
+Since the variation distance satisfies 11P — n II <8, we have
+1E( f) — E'(f)I _< max( f)
+E(f)/8;
+(13)
+IVar(f) — Var'(f)I < 38 max(f)2 = 34E( f) max(f)/8.
+Now let {Xi} be an independent sample of size s produced by the generator, and let Yo =
+s-1 Ei f (Xi) be the sample mean. Clearly Yo has expectation E' (f)and variance s-lVar'(f ).
+Therefore, by Chebyshev's inequality we have
+(14)
+Pr (I Yo — EV
+9 Var'( f)
+)1 > -Ei(f)) < 2
+g se(f)2'
+But if I Yo — Ei(i)1 <
+(f) then, from (13),
+IYo — E(f)1 5_
+— EV)1+1E/(i) — E(f )1
+
+< 3r(f)
+E(f)
+< 3 (1 + DE(f) +
+E(f).
+Note that this in turn implies that Yo approximates E(f) within ratio 1+ Moreover, applying
+(13) again we have
+VarV)< Var(f) + iE(f) max(f) < 14E(f)max(f) < 2 max(f)
+(16)
+18 max( f)
+1
+(17)
+Pr(Y0 approximates E(f) within ratio 1 + <
+=2s E(f)
+4
+(15)
+E'(f)2
+(sE(f))2
+(78-E(f))2
+E(f)
+where in the second inequality we have used the distribution-independent bound Var(f) <
+E(f) max( f), valid for any nonnegative random variable f . Combining (15) and (16) with
+(14), and choosing sample size s = 74-2 max(f)/E(f), gives
+
+1098
+MARK JERRUM AND ALISTAIR SINCLAIR
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+Now consider performing the above experiment an odd number t times, independently, and
+let Y denote the median of the resulting t values of Yo. In view of (17), the probability that Y
+fails to approximate E(f ) within ratio 1 + 4' is at most
+
+t
+i 3
+<
+t/2 3 t/2
+t
+I\
+3 t/2t
+3) t/2
+
+i=(t+1)/2 i
+4
+4
+— 4
+4
+i =(t +1)/2 i
+( 16
+2 = 4
+•
+Taking t = 6 Flg 77-11 + 1, this probability is bounded above by 131g(4/3) < i. The random
+variable Y therefore satisfies the requirement of the lemma. The total number of samples
+required from the generator is st, which is bounded above by 5044-2Flg ri-1-1 max( f)/E(f)
+as claimed. 0
+Proof of Lemma 4. We split the argument into two cases.
+Case I. uo > 3/4. In this case, we have
+> 1
+ > 1— 4
+Ito
+n [to —
+3n.
+Therefore, since Zi(u) = Lin/02i ckp,2k , and all coefficients ck are positive,
+
+Z'(Iii)> Ai 2Lit/2] >
+4 n > 1
+Z/(kt0) — AO
+1 _
+(
+3n
+— 4'
+assuming as we may that n > 2. (The problem is trivial otherwise.)
+Case II. kto < 3/4. This case is handled by appealing to the original spins-world expansion
+of Z. First note from the definition (4) of Z' that
+Z'(tt) _ Z(Vii, BI, ,8) x
+(18)
+Zi(kto)
+Z(Vii, Bo, i3)
+(2 cosh/3Boy > Z(Vii, Bi, /3)
+2cosh,8B1
+Z(Vij, Bo, P)
+where ,8 > 0 is arbitrary and Bo, B1 are defined by kci = tanh ,8Bi . Note that Bo > B1.
+Moreover, the upper bound kto — ,ui < n-1 translates to a bound on Bo — B1 via the inequality
+tanhx — tanh y > (x — y)sech2x, valid for x > y > 0. We get
+(19)
+fi(Bo — B1) < (kto — kti)/sech2pBo < 16/7n,
+where we used the fact that tanh /3B0 = ,u0 < 3/4 and sech2x = 1 — tanh2 x. But from the
+definition (1) of the partition function Z we have
+Z(Vii, Bt• /3)
+> minexp )3(B1 — B0) E ak
+exp(-0(B0 — B1)),
+Z(Vij, Bo, /3)
+u
+kErni
+which by (19) is bounded below by e-1617 and hence by 1/10. Together with (18) this yields
+the desired bound on Z/(111)/Zi(kto)•
+0
+4. An analysis of the subgraphs-world process. We shall assume that the reader is
+familiar with the elementary theory of finite Markov chains in discrete time: An introduction
+can be found, for example, in [10, Chap. XV].
+Assume IS > 0. Taking our cue from the form of (4), we define the subgraphs-world
+process, A/Wising, as follows. The state space, Q, of the Markov chain MCIsing is the set of all
+spanning subgraphs X c E; note that I QI = 2m, where m = lEl is the number of unordered
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+1099
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+pairs {i, j} with j 0 0. For X, X' E Q with X 0 X', the transition probability from X to
+X' is given by
+1/2m
+Iif IX ED X'I = 1
+and w(X') > w(X);
+w(X
+p(X, X') =
+w(X')/2mw(X) if IX ED X'I = 1 and w(X') < w(X);
+0
+otherwise,
+where X ED X' denotes the symmetric difference of X and X'. The self-loop probabilities
+p(X, X) are defined implicitly by complementation, so that p(X, X) = 1 —Exwc p(X, X').
+Thus, transitions in A/Wising are perturbations in which a single edge is added to, or deleted
+from a subgraph. Note that exactly m transitions are available from any state, and all transition
+probabilities are bounded above by 1/2m. Hence the transition probabilities are well defined,
+and the self-loop probabilities p(X, X) for each state X are bounded below by 1/2.
+We pause to observe that the above chain is very easy to simulate. Suppose the current
+state of the chain is X E Q. Then the transitions from X can be selected according to the
+following model:
+1. With probability 1/2 set X' = X, otherwise
+2. select an edge e E E uniformly at random, and let Y = X ED {e} (the symmetric
+difference of X and {e});
+3. if w(Y) > w(X) then set X' = Y; if w(Y) < w (X) then with probability w (Y)/w (X)
+set X' = Y, otherwise set X' = X.
+It will be seen that this procedure correctly models the transition probabilities specified
+earlier. It is worth remarking that there is no need to compute the weight functions w(X)
+and w(Y) from scratch at each iteration; since Y and X differ by a single edge, the quotient
+w(Y)/w(X) can be computed using just two multiplications.
+The Markov chain MCising is irreducible (all states communicate via the empty state
+0) and aperiodic (the self-loop probabilities are nonzero). Thus there is a well-defined sta-
+tionary distribution on Q which is independent of the initial state. Define n : Q R by
+(X) = w(X)/ Ex, w(X') = w(X)/Z'. We shall see presently that 7 is indeed the station-
+ary distribution on Q. For X, X' E Q define q(X, X') = z(X)p(X, X'). We claim that q is
+symmetric in its two arguments. If X = X' then there is nothing to prove. If IX e > 1,
+then p(X, X') = 0 and hence q(X, X') = 0. Finally, it is straightforward to verify from the
+definition of the transition probability p(X, X') that
+(20)
+q (X , X') = (2m)-1 min[7(X), 7(X')}, if IX ED X'I = 1.
+Since q is symmetric, the so-called detailed balance condition holds:
+(21)
+n (X)p(X, X') = q(X, X') = (X')p(X' , X).
+Suppose, as is the case here, that the function p• , •) describes the transition probabilities of
+an ergodic Markov chain. It is a fact [16, Lem. 2.1] that if there is any function 7 : Q
+R satisfying detailed balance together with the normalisation condition ExEs„ 7r (X) = 1,
+then the Markov chain is (time-) reversible, and 7 is its stationary distribution. Thus the
+stationary distribution of the Markov chain MCising is indeed given by n (X) = w(X)/Z', as
+claimed above, and we can use the chain to sample configurations X E Q with probabilities
+approximately proportional to w(X).
+As explained informally earlier, if the Markov chain A/Wising is to be the basis of an
+efficient sampling procedure for configurations then it must be rapidly mixing, in the sense
+that, if it is allowed to evolve from a suitable initial state, the distribution of its final state will
+
+1100
+MARK JERRUM AND ALISTAIR SINCLAIR
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+be very close to the stationary distribution after only polynomially many steps. Note that this
+is a highly nontrivial requirement: since the number of states in the chain is exponentially
+large, we are demanding that it converge after visiting only a tiny fraction of its state space.
+Our argument that the chain is rapidly mixing is in two parts: First, in Theorem 6, we state
+a general characterisation of the rapid mixing property in terms of a measure known as the
+conductance; then, in Theorem 7, we estimate the conductance of MCising.
+For an ergodic reversible Markov chain, the conductance [27], [29] is defined by
+0 = min E q(X, X') E7(X) ,
+XES
+xEs
+x'v S
+where the minimisation is over all subsets S of states with 0 < Ex E s (X) < 1/2. (Note that
+0 < (13 < 1.) The conductance in some sense measures the rate at which the process can flow
+around the state space: specifically, it provides a lower bound on the conditional probability
+that the stationary process escapes from a small subset S of the state space in a single step,
+given that it is initially in S. Thus a chain with large conductance is unlikely to "get stuck" in
+any small region of the state space, so we might expect it to converge fast. This intuition is
+captured in the following theorem.
+THEOREM 6. Let (1) be the conductance of an ergodic, reversible Markov chain with
+stationary distribution 7 and minx p(X, X) > 1/2. Let p(t) denote the distribution of the
+state at time t given that the initial state is Xo. Then the variation distance II P(`) — n II satisfies
+Ilp(t) —7,11 < (1-02y.
+(X 0)
+(The requirement that minx p(X, X) > 1/2, i.e., that every state has a self-loop probability
+of at least 1/2, is a technical device which removes periodicity; note that MCising satisfies this
+requirement by construction.)
+Proof The theorem is essentially a restatement of Theorem 3.4 of [29], to which the
+interested reader is referred for details; we mention here only the necessary modifications.
+The main difference stems from the fact that in the former result we used the stronger relative
+pointwise distance (r.p.d.), rather than the variation distance, as a measure of deviation from
+the stationary distribution. In similar fashion to the r.p.d., the variation distance at time t may
+be related, by elementary linear algebra, to the second eigenvalue A1 of the Markov chain: we
+get
+(22)
+P") IT <
+- r (X (1) •
+
+(See, for example, Proposition 2 of [7], which presents a marginally stronger result, with
+(Xo) replacing n- (X0) in the denominator. Note that the presence of a self-loop probability
+of 1/2 on every state ensures that all eigenvalues are nonnegative.) The bound in (22) differs
+from that on the r.p.d. in Lemma 3.1 of [29] only in that n- (X0) replaces minx 7 (X).
+Now the main result of §3 of [29], Lemma 3.3, relates Ai to the conductance via the bound
+< 1 — 02/2, valid for an arbitrary reversible chain. It is easily seen from the proof of the
+lemma that the marginally stronger bound
+(23)
+< 1 — scp2
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+1101
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+holds for chains in which all self-loop probabilities are at least 1/2. Putting (22) and (23)
+together establishes the theorem.
+❑
+Remarks. (i) The heart of the above proof is the eigenvalue bound (23). This is a discrete
+analogue of Cheeger's inequality for Riemannian manifolds [5]. Related bounds have been
+observed by several authors; see, e.g., [8], [1], [23], [25].
+(ii) Theorem 6 has a converse, which says that if a Markov chain is rapidly mixing then
+its conductance cannot be too small; see, e.g., [23], [27], [28]. Thus the conductance provides
+a characterisation of the rapid mixing property.
+Theorem 6 allows us to investigate the rate of convergence of a reversible chain by
+examining its transition structure, as reflected in the conductance. In particular, if we wish to
+ensure a variation distance of at most 6 then it is clear that (I)-2(ln 8-1 Inn- (X0)-1) steps
+suffice. Thus the rapid mixing property will generally follow from an inverse polynomial
+lower bound on the conductance. Such a bound is available for the chain MCIsing defined
+above. Specifically, we have the following theorem.
+THEOREM 7. The conductance of the Markov chain MCising is bounded below by /2,4/4m.
+The proof of Theorem 7 is the main content of this section. Before proceeding with it,
+however, let us first use the result to verify our claim in Theorem 2 of the previous section
+that an efficient generator for subgraphs-world configurations exists. This will complete the
+validation of our approximation algorithm for the partition function.
+Proof of Theorem 2. The generator operates as follows. Given as input a ferromagnetic
+Ising system in the form (Xi j, ,u,), with 0 < p < 1, and a tolerance 6 E (0, 1], simulate the
+associated Markov chain MCIsing for 16m2µ-8(ln 8-1 m) steps, starting in state Xo = 0
+(i.e., the empty graph on vertex set [n]). Since < 1 for all i, j, and p, < 1, it is clear that
+w (X0) > w (X) for all configurations X. Hence n- (X0) > 2'. Appealing to Theorem 6, we
+conclude that the specified number of simulation steps is enough to ensure a variation distance
+of at most 8. The theorem is therefore established. ❑
+Proof of Theorem 7. The proof rests on a path counting argument, similar to those em-
+ployed in previous applications [27], [16] of the conductance bound. We present a preliminary
+sketch map of the proof technique before considering the technical details which arise when
+applying the path counting argument to the particular chain under consideration.
+For each pair of states I, F E Q, a canonical path from I (the initial state) to F (the final
+state) is specified. The canonical path proceeds via a number of intermediate states using only
+valid transitions of the Markov chain. Each canonical path is assigned a weight which is the
+product of the stationary probabilities at the initial and final states; thus the weight of the path
+from I to F is 7 Wit (F), independent of the intermediate states in the path. A careful choice
+of canonical paths is essential to secure a good bound on conductance.
+Suppose it can be shown that, for each transition T
+T', the aggregated weight of
+canonical paths which use transition T
+T' is bounded above by bq(T,T'), where q is as in
+(21). Consider any partition of the state space Q into two sets S and S with Ex,s 7(X) < 1/2.
+Then, on the one hand, the total weight of canonical paths which cross the cut defined by S and
+S is at least Eies )— 6 (I)n- (F) = n-(S)7(S) > n-(S)12. On the other hand, summing over
+transitions T
+T' with T E S and T' E S, we have that the total weight of canonical paths
+which cross the cut is bounded above by b ETEs
+q(T , T'). Since S and S represent
+a general partition of the state space Q, it follows immediately that the conductance of the
+Markov chain is bounded below by 1/2b.
+It will be perceived that the principal barrier to applying the above idea is likely to lie
+in obtaining a good value for the bound b. This is achieved using a combinatorial encoding
+technique, as follows. For each transition T —+ T', let cp(T, T') denote the set of all pairs
+(I, F) E Q2 such that the canonical path from I to F includes the transition T -± T'. Fix
+
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+1102
+MARK JERRUM AND ALISTAIR SINCLAIR
+any particular transition T
+T'. Then it turns out that we can define an injective map from
+cp(T, T') to the state space Q. Since the map is injective, any state U E Q picks out at most
+one canonical path, from I to F, say, which uses the transition T ---> T'; the state U can be
+thought of as an encoding of the canonical path. Moreover, the injective map can be chosen so
+that the weight of the canonical path, namely, n-(I)7r(F), is roughly proportional to 7(U), the
+probability assigned to the encoding U by the stationary distribution. Since Tt is a probability
+distribution, the sum of 7(U) over all encodings U is at most one; this upper bound translates
+to an upper bound on the total weight of paths using T ---> T', and hence to a value for b.
+All the above must now be specialised to the Markov chain MCIsing• The first task is
+to specify a canonical path for each pair I, F E Q. View / and F as graphs with vertex set
+[n]. Let A./EDF be the symmetric difference of I and F, and suppose that the graph A
+has 2k vertices of odd degree. (The number of odd-degree vertices in a graph is necessarily
+even.) Cover A with a collection C1, C2, Cr of assorted trails and circuits which are
+pairwise edge disjoint, imposing the condition that the first k objects, C1, C2, . , Ck, are all
+open trails (walks with no repeated edges) while the remainder, Ck+1, Ck+2, • • • Cr, are all
+circuits (closed trails).
+That this can be done with so few (open) trails follows from a simple induction on k. When
+k = 0, every vertex of A is of even degree, so each connected component of A is Eulerian and
+can be covered by a single circuit. Now suppose k > 0 and i is a vertex in A of odd degree.
+The connected component of A containing i must contain at least one other odd-degree vertex,
+say, j. Connect i and j by a trail, letting this be one of the trails in the required decomposition
+of A. Deleting this trail from A yields a graph with 2(k — 1) odd-degree vertices, which can
+be covered by k —1 trails (together with some number of circuits) by the induction hypothesis.
+The covering of A by trails and circuits is not in general unique, and we assume that some
+rule is employed to pick out a particular choice of C1, C2, . , Cr. We further assume that
+this rule also specifies a distinguished initial vertex for each trail or circuit, and a direction
+for each circuit. In the case of a trail the initial vertex must be an endpoint of the trail; in
+the case of a circuit the initial vertex may be arbitrary. The canonical path from I to F is
+now obtained by unwinding the trails and circuits C1, C2, . , Cr in sequence. Unwinding
+Ci involves processing each edge of Ci in sequence, starting at the initial vertex and, in the
+case of a circuit, following the assigned direction. Each processed edge, e, generates a single
+transition on the path from I to F. If e is in F (and hence not in I) the transition involves
+adding the edge e to the current state; if e is in I (and hence not in F) the transition involves
+deleting the edge e from the current state. It is clear that this process defines a canonical path
+of legal transitions from state I to state F.
+The next task is to define the injective map (encoding) from the set of canonical paths
+using a given transition to Q. Recall that cp(T, T') denotes the set of all pairs (I, F) E S-22
+such that the canonical path from I to F employs the transition T —> T'. Define the map
+11T-±T' : cp(T, T') Q by nT,T,(I, F)=IEBFED(TUV) for all (/, F) E cp(T, T').
+The intention here is that the encoding should agree with I on the trails and circuits already
+processed, and with F elsewhere.
+We verify that
+is injective by demonstrating that I and F are uniquely determined
+by U = qT_,T, (I F). Indeed, given U, we can compute U (T U T') = I G F and hence the
+uniquely defined covering C1, C2,
+, Cr of I EDF by trails and circuits. The edge e = T T',
+which is added or deleted by the transition T
+T', points out which trail or circuit, Ci, is
+being unwound, and how far the unwinding of Ci has progressed. Starting at state T', we
+may complete the unwinding of Ci and successive trails/circuits to discover the final state F;
+equally well, we may use the reverse process to recover the initial state I. So the map ro-.-+Ti
+is injective, as claimed.
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+1103
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+The other property we require of the encoding is that its weight should be roughly pro-
+portional to that of the encoded path. Precisely, we require of U =
+(I, F) that
+(24)
+r (U)q(T , T') > (2m)-1 eu4 n- (I)n- (F),
+or, equivalently, multiplying through by (Z')2 and using assertion (20),
+(25)
+w(U)w(T) > µ4w(I)w(F) and w(U)w(T') > p,4w(I)w(F).
+The verification of the left-hand inequality will be treated in detail below; the right-hand
+inequality will then be shown to follow by symmetry.
+For X E S2, write A (X) =
+so that w(X) = A(X)p,iodd(x)1.To verify the
+left-hand inequality of (25) it is enough to demonstrate separately that
+(26)
+A(U)A(T) > A(I)A(F),
+and
+(27)
+lodd(U)I
+lodd(T)I — lodd(/)1 — lodd(F)I < 4.
+(We used here the fact that 0 < u < 1.) We deal first with (26), which is the more straight-
+forward. From the construction of canonical paths we have I fl F c T U T' c I U F, while
+the definition of U entails U (T U T') = I ED F. It follows by elementary set theory from
+these two observations that U fl (T U T') = I fl F and U U (T U T') = I U F. Hence
+A(U)A(T U T') = A(U U (T U T'))A(U fl (T U T')) = A(I U F)A(I F) = A(I)A(F),
+which, together with A (T U T') < A (T), implies (26).
+We now turn to inequality (27). For i E En] define
+ce(i) = Xodd(U)(i)
+Xodd(T)(i)
+Xodd(/)(i)
+Xodd(F)(i),
+where Xs denotes the characteristic function of a set S. Note that —2 < a(i) < 2. Inequality
+(27) can be re-expressed as
+(28)
+E a(i) 5 4.
+iE[12]
+We shall argue that a(i) < 0 for all i outside a small set of exceptions. In order to discuss
+these exceptions, we give names to three vertices which have special significance. Denote by
+s the initial vertex of the circuit which is in the process of being unwound when the transition
+T T' is made (s is undefined if the transition occurs on a trail). Denote by u and v
+the endpoints of the edge e = T ED T' which is added or subtracted during the transition
+T T'; vertex u is distinguished from v by being the first to be encountered in the direction
+of unwinding. We shall see that the vertices s, u, and v are the only ones which can provide a
+positive contribution to the sum in (28).
+Consider first the conditions under which a(i) = 2 can occur. It must be the case that i
+has even degree in both I and F, and odd degree in both U and T . Now it is a consequence
+of the way canonical paths are constructed that a vertex which has even degree in both I and
+F will generally have even degree in the intermediate configuration T; the only exceptions
+are the vertex s (whose degree became odd when the unwinding of the circuit commenced)
+and the vertex u (whose degree was made odd by the previous transition, and whose parity is
+
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+1104
+MARK JERRUM AND ALISTAIR SINCLAIR
+restored by the transition T
+T' itself). To summarise: The case a (i) = 2 can occur only
+when i = s or i = u.
+Consider now the conditions under which a (i) = 1 can occur. This case is ruled out,
+with two exceptions, by simple parity considerations. Since I F = U (T U T'), the
+value of a (i) must be even unless i = u or i = v. (These are the only points at which the
+set T U T' may differ from T.) Combining this observation with the previous analysis for
+the case a (i) = 2, we see that only three terms of the sum occurring in (28) can possibly be
+strictly positive and that the sum itself cannot exceed 5. (The worst case is achieved by setting
+a (s) = 2, a (u) = 2, and a (v) = 1.) However, the sum cannot actually attain 5 on grounds
+of parity: Each of the terms appearing on the left-hand side of (27) is necessarily even. This
+completes the verification of (28), and hence of (27) and the left-hand inequality of (25). The
+right-hand inequality of (25) follows by a symmetrical argument, with the roles of T and T',
+and u and v, interchanged.
+Finally, summing (24) over all canonical paths which employ the transition T
+TI we
+obtain the following upper bound on the total weight of canonical paths which use T
+T':
+E
+n (I )n- (F) <
+F))q(T ,
+2m 11,-4 q (T, T'),
+(I, F)ecp(T, T')
+(I, F)ecp(T, T')
+where the second inequality rests on the fact that nT,T, is injective. In the notation of the
+sketch map presented at the beginning of the proof, b = 2mit-4. Therefore, the conductance
+of MCIsing is bounded below by 1 /2b = ,u4 /4m, as claimed at the outset. 0
+Remark. The main task in the proof of Theorem 7 is to estimate the "bottleneck" measure
+b; this is then used to get a bound on conductance, and hence on the rate of convergence of
+MCising. In fact, b can be used directly to obtain a significantly sharper bound on the rate
+of convergence; for the details, see [28]. Specifically, the runtime of the generator quoted in
+Theorem 2 is reduced by a factor 0 (p,-4), which improves the runtime of the approximation
+algorithm for the partition function (Theorem 5) by a factor of 0 (0). Similar improvements
+apply to the runtimes of our other algorithms that make use of the generator.
+5. The mean energy and mean magnetic moment. Of greater immediate importance
+to physicists than the partition function Z itself are the partial derivatives of In Z with respect
+to /3 and B. The key quantities of interest are the mean energy E = --8(ln z)/ao, and the
+mean magnetic moment M = 13-la (ln z)/a B. As their names suggest, both of these can be
+viewed in the spins world as expectations of the corresponding physical quantities.
+There is no reason to suppose that an fpras for the partition function Z will directly
+yield an fpras for these derivatives of In Z. However, we demonstrate in this section that
+polynomial-time approximation algorithms for E and M do indeed exist. The construction
+of these algorithms relies on the surprising fact that E and M can be viewed as expectations
+of appropriately defined random variables in the subgraphs world. Although some technical
+complications arise, it is possible to estimate these expectations more or less directly by
+simulating the subgraphs-world process for a polynomially bounded number of steps.
+The mean magnetic moment is slightly easier to work with and we treat it first. The main
+result is preceded by a technical lemma, whose proof is deferred to the end of the section.
+Recall that in the subgraphs-world distribution, each configuration X occurs with probability
+w(X)/Z'.
+LEMMA 8. Suppose the configuration X E Q is randomly selected according to the
+subgraphs-world distribution. Then:
+(i) Pr(Iodd(X)I > 0) < ,u2/2, provided E Ai j > 1;
+(ii) Pr(lodd(X)I = 2) > ,u2/10, provided E
+1 and ,u < n-1.
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+1105
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+THEOREM 9. There exists an fpras for the mean magnetic moment M = p-1 a (ln z)/ a B,
+where Z is the partition function of a ferromagnetic Ising system.
+Proof We shall express the quantity M as an expectation in the subgraphs world by
+differentiating the logarithm of the expansion given in Theorem 1 with respect to B. Before
+doing this, it is convenient to perform some preparatory computations. Since M = 0 when
+I odd( X) I ,
+B = 0, we may assume that B > 0. Recall that w(X) = A (X),u,
+where A = tanh PB
+by definition, and A (X) is independent of B. Then
+a Bw(x) = A(x)lockt(x)i[t1odd(x)I-1
+(sechf3B)2/3
+= )3w(X)Iodd(X)I(tanh pB)-1(sechP,B)2
+= w(X) 2/3Iodd(X)I
+sink 2p B
+Furthermore, from the definition of A in (5),
+a
+a
+—
+In A = —n In cosh /5 B nI3 tanh 16B.
+aB
+aB
+With these identities in mind, we compute M using the expansion of Theorem 1 as the starting
+point:
+a
+a
+a ,
+,
+.A4 = — — ln Z = — — ln A + — — z
+p a B
+p a B
+p a B
+= n tanh )3B +
+Ew(x)
+z, x aB
+= n tank /3B + 1
+w(x)21odd(X)I
+sink 2/3B
+Using, as before, the notation E(f ) =
+Ex w (X) f (X) to express the expectation of a
+random variable f in the subgraphs world, the above identity can be written more compactly
+as
+(29)
+M = n tanh
+2 +
+Elodd(X)I.
+sinh 2pb
+Note that to approximate M within ratio l+c it is enough, since both terms of (29) are positive,
+to estimate Elodd(X) I within ratio 1 + E. We propose to do this by using the Markov chain
+MCIsing analysed in §4, to provide a polynomial number of sample configurations X from
+the subgraphs-world distribution, and returning the average of lodd(X) I over the sample. As
+noted in the discussion preceding Lemma 3, this approach will yield an fpras for M provided
+the ratio max Iodd(X)I/Elodd(X)I is bounded by a polynomial in n. Although such a bound
+often holds, a more refined approach is necessary in certain circumstances. We proceed by
+case analysis.
+Case I. E xi; > 1. We identify two subcases, according to the size of A.
+Case I(a). a > n-1. In this range, we may estimate M by direct experiment. From
+Lemma 8,
+Elodd(X)I > 2Pr(Iodd(X)I > 0) .> /12 > n-2,
+
+1106
+MARK JERRUM AND ALISTAIR SINCLAIR
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+while, clearly, max Iodd(X)i < n. Thus the ratio max I odd(X) I /E lodd(X) I is bounded above
+by n3
+Case I(b). ,u, < n-1. Intuitively, the problem when pc is small is that a randomly sampled
+configuration may, with high probability, satisfy lodd(X) I = 0; in this situation, very many
+trials may be required to obtain a sufficiently accurate estimate of the expectation of Iodd(X) I.
+The solution is to perform experiments at an increased value of say a, at which the event
+lodd(X) I > 0 occurs with sufficiently high probability. Since we shall be allowing ,u, to vary,
+it is convenient, as before, to refine our notation to make the dependence on ,u, explicit. In
+particular, EA(f) will denote the expectation of the random variable f when experiments are
+undertaken with A set to some revised value a. The unsubscripted notation E(f) will be
+reserved for expectations with respect to the original value of It.
+Set µ = n-1 and define
+iocki(x)1
+f (X) = lodd(X)I 12-:
+Straightforward manipulations yield the identity
+(30)
+Elodd(X)I = ZZ(a)E4(f),
+'(,u)
+which relates the quantity we are attempting to estimate to the expectation of f at the revised
+value of kt. Since Z'(µ) and Z'(µ) may be estimated by the techniques of §3, we concentrate
+here on the estimation of Eiz(f). From part (ii) of Lemma 8 we have Prii (I odd(X) I = 2) >
+42/10; this inequality allows the expectation of f to be bounded below:
+2
+it2
+f) a 2
+Pra (I odd(X)I = 2) —5 .
+( )
+The maximum of f, meanwhile, satisfies the crude bound max( f) < (A14)2n. Thus the
+ratio max(f)/EA (f) is bounded above by 50-2 = 5n3. Case II. E Ai; < 1. In this rather
+pathological case, the essential problem we face is that a randomly sampled configuration
+may, with high probability, be the empty set. As before, we shall conduct experiments at an
+artificially inflated value of p. and use (30) to relate the results of these experiments to the
+value we are attempting to estimate. This time, however, we choose to work with a = 1.
+Unfortunately, even with a set to 1, the highest possible value, it may still happen that
+the empty configuration X = 0 occurs with very high probability. We overcome this problem
+by sampling from the distribution obtained by conditioning on the event X 0 0. With f as
+before, and noting that a = 1 and f (0) = 0, we have
+Ln/2 j
+EA (f) = E 2k,u2kPOlodd(X)1 = 2k)
+k=0
+Lt7/2]
+= Pra (X 0 0) E 2144,2kPrii (I odd(X) I = 2k I X 0 0).
+k=1
+Now Z/(1) = 1I(1 Xj1), and hence
+(31)
+Prii (X 0 0) =
+Z'( a)
+Z' (µ) — 1
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+1107
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+is easy to evaluate directly. It is enough, therefore, to estimate the expectation of f with
+respect to the distribution of conditional probabilities, in which each nontrivial configuration
+X 0 0 occurs with probability (Z'(/2) - 1) -111 {i, i}Ex Au. This conditional distribution
+may be sampled without recourse to Markov chain simulation, the direct method being as
+follows. Start with X =0 and perform a sequence of m trials, each trial determining whether
+a particular edge is to be added to X. The probability governing each trial has one of two
+values, depending on whether any of the previous trials have contributed an edge to X. Define
+pii = Xi j (1 ± , and suppose that we are about to decide whether to add a certain edge
+{i, j} to X. If X 0 0, the edge {i, j} is added to X with probability pii; otherwise, the
+edge is added to X with probability pij[l r1(1 Phk)]-1, where the product is over all
+edges {h, k} whose fate is yet to be decided, including edge {i, j} itself. It is straightforward
+to verify that this procedure yields the required distribution. It only remains to verify that a
+polynomially bounded number of sample configurations suffice to provide an accurate estimate
+of the expectation of f. Again, we do this by demonstrating an upper bound on the ratio
+between the maximum of f and the mean of f. Observe that
+Z1(a) = 11(1 +
+< exp
+1
+
+Prii(lodd(X) I = 2) >
+E
+Z'(a)
+where in (32) we used the fact that ex < 1 + 2x in the range 0 < x < 1. Combining (31) and
+(33), we obtain a lower bound on the probability of lodd(X) I = 2 conditional on X 0.
+I
+Pry(I odd(X) I = 2 I X
+= Pry (lodd(X) = 2)
+Pr, (X 0)
+Z' (a)
+1
+-2; > 1
+Z'(a) - 1 Zi(a)
+the final step here relies on (32). It follows immediately that the expectation of f with respect
+to the conditional distribution is at least pt2. Using the crude bound max(f) < n,u2, we see
+that the ratio of the maximum to the mean of f is bounded above by n. This completes the
+analysis of Case II.
+We conclude by analysing the time complexity of the proposed approximation scheme
+for M. The worst case is realised by Case I(b), where our method demands that the three
+quantities appearing on the right-hand side of identity (30) be known with sufficiently high
+accuracy. To obtain an fpras for .A4, it is enough to estimate each of these three quantities
+within ratio 1 + E/4 and with failure probability 1/12. Setting 4 = E/4 and 17 = 1/12 in
+Lemma 3, we see that 0 (E-2n3) samples from the generator suffice to estimate Eta (f) within
+ratio 1 + E/4 and with failure probability 1/12. The production of each sample requires time
+0 (m2i1-8(log 3-1 + m)), where 8-1 = 0 (E-1n3). We may assume that E > 2-m; otherwise
+there would be time enough to evaluate M exactly using a brute force algorithm. With this
+simplifying assumption, and noting that µ = the the time to produce each sample is seen
+to be 0(m3n8), and the total time to estimate EA (f) is 0 (6 -2m 3n ii\
+) The overall execution
+time for the algorithm is thus dominated by the time taken to estimate Z'(,t) and Z'([7,) within
+ratio 1 + E/4 and with failure probability 1/12; from Remark (i) following Theorem 5 this
+dominant term is seen to be 0(6 -2m 3n11 log n).
+(32)
+and
+(33)
+
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+1108
+MARK JERRUM AND ALISTAIR SINCLAIR
+We turn now to the mean energy E. Up to this point, we have always sampled con-
+figurations withµ set to some value which is at least n-1. In the sequel, we shall need to
+sample configurations at smaller values of g; at these values Theorem 2 no longer guarantees
+an execution time for the sampling procedure which is polynomial in n. However, efficient
+sampling is possible, even at ,u = 0.
+THEOREM 10. There exists a generator for subgraphs-world configurations which, on
+inputs (A,ij, A) and 8, runs in expected time bounded by a polynomial in n and log 3-1.
+Specifically, the expected execution time of the generator is 0 (m2n8(log 3-1 m)).
+Proof. The result for p, > n-1 follows directly from Theorem 2, so assume that p, < n-1.
+We employ the generator of Theorem 2 but withµ artificially boosted to a, = n-1, and 8
+decreased to 8 = 3/10. To sample a configuration X from the distribution corresponding to
+the original value of ,u, perform a sequence of trials of the following form. First produce a
+random configuration X using the generator of Theorem 2 (with the modified parameters);
+then, with probability (,01)lodd(X)1, declare the trial successful; otherwise, declare the trial a
+failure. The sequence of trials is halted at the first successful trial, and the configuration X
+produced by that trial is returned as the result.
+The probability that a trial is declared successful is at least Prii (Iodd(X) I = 0), which
+by Lemma 4 (setting ,u,i = 0 and to = n-1) is at least 1/10. Thus the expected number of
+trials required to generate a configuration is at most 10. It is straightforward to check that the
+procedure described above, viewed as a generator with respect to the original value of ,u,, has
+tolerance at most 108 = 8. ❑
+As in the case of the mean magnetic moment, the main result rests on a technical lemma,
+whose proof is deferred.
+LEMMA 11. Suppose B = 0, i.e., that there is no external field. If w(X) < 1/32nm2 for
+all X 00, then Z' = Ex w(x) < m.
+THEOREM 12. There exists an fpras for the (negation of the) mean energy —E =
+a (ln Z)/a8, where Z is the partition function of a ferromagnetic Ising system.
+Proof. We shall assume that B = 0, i.e., that there is no external field; the proof in the
+general case introduces extra technical complications, but requires no new ideas. At the end
+of the proof, we sketch the modifications required to deal with a nonzero external field.
+When B = 0 the partition function, Z, simplifies to Z = A Ex w(X), where
+A = fl cosh f3Vii,
+fimEE
+w(x), fltanh PVii,
+{i,./}Ex
+and the sum is over all closed X c E. (A graph X is said to be closed if every vertex of X
+has even degree.) Define
+g(X) = E 2Vii/ sinh 2/3 Vij ,
+timEx
+and let f (X) = c g(X). Then
+a
+—w(X) =
+tanh pvi;
+ap
+as
+{ij}Ex
+tanh /3 vi; E 2 Vii / sinh 2f3Vii
+limEx
+= w(X)g(X).
+c = E vi;tanh /3 Vii ,
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+1109
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+Using this identity, and starting from the expansion given in Theorem 1:
+a
+—E = a —
+a Z) = In A + In Z'
+aE ln cosh pi/if + 21 —08
+=
+0w(x)
+al3 fimEE
+E Vii tanh /3 Vi
+w(X)g(X)
+ti,j1EE
+Z x
+= = E w(x)(c + g(X)).
+Z'
+Thus, the mean energy can be expressed as an expectation: —E = E(f ). This expression for
+—E immediately suggests that we attempt to estimate the mean energy by taking an average
+of f (X) over some polynomially bounded set of sample configurations X. This basic idea
+can be made to work, with a little refinement. As before, we proceed by case analysis.
+Case I. pvi; > 1 for some pair i, j. The condition guarantees that the constant c is not
+too small in relation to g(X), and hence that the ratio max(f)/E(f) is not too large. This,
+as we have seen, implies that E(f) can be estimated by direct experiment. First note that the
+existence of a pair i, j with f3Vij > 1 entails
+
+3 Vii
+3
+(34)
+c > Vii tanh p vi; >
+ >
+
+4
+4p
+Then observe that the inequality x/ sinhx < 1, valid for x > 0, implies
+m
+g(X) = > 2 Vii / sinh 23 Vii < E —1 <
+{ij}Ex
+timEx
+Thus max( f) = c max(g) < c +m1,8 < c(1 + 4m/3), where the final step relies on (34).
+Since E(f) is certainly bounded below by c, it follows that max(f)/E(f) < 1 + 4m/3 <
+7m/3.
+Case II. pi/if < 1 for all i, j. To estimate E(f) within ratio 1 + E it is enough, since c
+is positive, to estimate E(g) = E(f) — c within ratio 1 + E. For simplicity, we shall, in the
+sequel, work with g instead of f . Using the bounds 1/2 < x/ sinhx < 1, valid for x in the
+range 0 < x < 2, we have 1/2/3 < 2Vij/ sinh 2pvi; < up, implying
+(35)
+1/2,8 < g(X) < m1,8, for X 0 0.
+Let C 0 be a closed subgraph which maximises w(C). Note that C is necessarily a cycle,
+and can be found in polynomial time using a standard shortest paths algorithm. There are two
+subcases, depending on the magnitude of w(C).
+Case II(a). w (C) > 1/32nm2. In this subcase we may estimate E(g) by direct experiment.
+Since Z' > w(0) + w(C) = 1 + w(C), it follows that
+w (0)
+11
+Pr(X = 0) =
+=
+< (1 -1- w(C))-1 < 1
+Z'
+Z'
+64nm2"
+Combining this inequality with inequality (35), we obtain E(g) > (1/2,6) Pr(X
+0)
+1/128f3nm2. Then a further application of (35) yields the required bound: max(g)/E(g) <
+128nm3.
+
+1110
+MARK JERRUM AND ALISTAIR SINCLAIR
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+Case II(b). w(C) < 1/32nm2. The essential problem in this case is that we have no
+lower bound on the expectation of g. The solution is to increase the expectation artificially by
+adjusting the weight function w. Naturally, a new weight function induces a new probability
+distribution on configurations, which in turn alters the expectation of g. It is therefore important
+to adjust the weights systematically, so that it is possible to recover the expectation of g with
+respect to the original distribution from the knowledge of the expectation of g with respect to
+the new distribution.
+The new weight function wa is parameterised by a real number a in the range 0 < a < 1.
+We define adjusted edge weights A.(11) = ,X1°' which induce a new weight function wa:
+
+flW a (X) -7=
+=
+, = w(x)i--.
+{,}Ex
+{imEx
+Note that the original weight function corresponds to setting a = 0, i.e., w(X) = wo(X).
+Note also that 0 <
+<9
+1 so the new edge weights)
+correspond to a well-defined
+
+subgraphs-world process; as a consequence, it is possible to sample configurations according
+to the distribution which assigns probability wa (X)/4' to configuration X, where 4' =
+Ex wa(X). Let Ea•) denote the expectation operator with respect to the new distribution,
+i.e., Ea (h) = (Za' )-1 Ex wa(X)h(X).
+Now fix a so that wa (C) = 1/32nm2; the required value of a is the solution to the
+equation w(C)I-" = 1/32nm2, and lies in the range 0 < a < 1. For any X 0 0, maximality
+of C implies w(C) > w(X), which in turn implies wa (C) = w(c)1-u > w(x)1-a = wa(X);
+thus C remains a maximum weight nontrivial configuration under the new weight function
+wa. Now the quantity we wish to evaluate, namely, E(g), can be written as an expectation
+with respect to the new distribution:
+E(g) = —1 E w(X)g(X) = — E wa(X)w(X)a g(X)
+
+Z' x
+Z' x
+'
+= Z' Ea(w(X)a g (X)).
+Z
+Since Z' and Za' can be computed by the fpras of §3, we merely have to show that the
+remaining factor Ea (w(X)a g(X)) can be approximated in polynomial time. As before, this
+can be achieved by bounding the ratio of the maximum to the mean.
+By maximality of C and inequality (35),
+max(w(X)" g(X)) < w(C)"—.
+Also, by Lemma 11 and (35),
+W Ea (w(X)a g(X))
+(w(C)a g(C))
+Z'a
+1
+w(C)"
+w(C)"
+32nm3 2/3
+6413nm3
+Putting these inequalities together, we obtain
+max(w(X)ag(X))
+
+ < 64nm4.
+(w(X)a g(X)) -
+This completes the analysis of Case II(b).
+(36)
+
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+1111
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+It is this final case which determines the execution time of the proposed fpras for —E.
+Consider the cost of evaluating the three factors appearing in (36), within ratio 1 E/4 and
+with failure probability 1/16. From §3, 0 (E-2M3nil log n) time suffices to obtain satisfactory
+estimates for the factors Z' and Z. Setting = E/4 and 7/ = 1/16 in Lemma 3, we
+see that 0 (E-2nrn4) samples from the generator suffice to evaluate the remaining factor,
+Ea (w (X)" g(X)), within ratio 1 + E/4 and with failure probability 1/16. By Theorem 10, the
+generation of each sample requires expected time 0 (m3 n8). (As before, we are justified in
+assuming that E > 2—m.) Thus the expected time required to obtain a sufficiently accurate
+estimate of Ea (w(X)" g(X)) is 0 (E-2m7n9); it can be seen that this term dominates those
+which arise in the other steps of the algorithm. Now set a definite upper bound on the aggregated
+execution time of the generator which is 16 times the expected execution time. By this means
+the quoted average case time complexity is converted into a worst case time complexity, at the
+cost of introducing an additional failure probability of 1/16. This additional failure probability
+may be absorbed into the overall failure probability of 1/4 which the definition of fpras allows.
+Finally, we sketch the modifications required to handle the case of nonzero external field,
+i.e., B > 0. Starting with the general subgraphs-world expansion for Z, and differentiating
+In Z with respect to 13, the mean energy —E can again be expressed as the expectation of an
+appropriately defined random variable f (X). Naturally, the form of f is now more complex.
+Lemma 11 continues to hold, but with 1/64n2m2 replacing 1/32nm2 as the upper bound on
+w(X). The proof of Lemma 11 increases in technical complexity, but the main idea remains
+as before. The complications arise from the fact that the maximum weight nontrivial subgraph
+may be either a cycle (as before) or a single edge (previously excluded). The case analysis in
+the proof of the theorem proceeds as before, but the upper bound on overall execution time
+rises to 0(E-2m7nio). 0
+In this section, we have presented fully polynomial randomised approximation schemes
+for the first derivatives of In Z with respect to f3 and B. The second derivatives of In Z also have
+physical significance: C = k,8202(1nz)/ap2 is the specific heat, and X = /3-102(ln z)/aB2
+the magnetic susceptibility. (Here, k denotes Boltzmann's constant.) It is natural to ask
+whether the techniques presented in this section can be extended to these quantities. With a
+certain amount of computational effort, it is possible to express C and X as expectations of
+appropriate random variables in the subgraphs world. Unfortunately, however, these random
+variables are not necessarily positive, and the proof techniques of Theorems 9 and 12 are
+therefore not applicable. At present, the question of the existence of an fpras for C and X
+remains open.
+We close the section by presenting proofs of the technical lemmas.
+Proof of Lemma 8. We demonstrate, by a simple mapping argument, that
+(37)
+Pr(Iodd(X)I = 2) >2Pr(lodd(X)I = 0).
+Let Qk denote the set {X E Q : Iodd(X)I = 2k}. Associate with each configuration X E 00
+the set S(X) = {X' E Q : IX/ 1ED XI = 1} c S21. It is straightforward to verify that the subsets
+{S(X) X E S20} are pairwise disjoint, and that Ex/Es(x) w(X') > w(X)A2 for all X E S20.
+(For X = 0 we need the condition E > 1.) Thus ExEc,i w(X) > /12 Exeoo w(X), and
+(37) follows by dividing through by Z'.
+It follows from (37) that Pr(I odd(X) I > 0) > it2/0 it2\
+) > p2/2; this deals with the
+first part of the lemma. Furthermore, Lemma 4 assures us that Pr(I odd(X) I = 0) > 1/10
+whenever < n-1. Combining this observation with (37) yields the second part of the
+lemma.
+0
+Proof of Lemma 11. Since B = 0, it is only the closed subgraphs X c E which have
+nonzero weight: w(X) =
+A. Let X0, X1, X2, . , Xs_1 be an enumeration of the
+
+1112
+MARK JERRUM AND ALISTAIR SINCLAIR
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+closed subgraphs of E in order of nonincreasing weight; thus X0 = 0, w(X0) = 1, and
+w(Xi) < 1/32nm2. For each edge e = {i, j} E E define 1(e), the length of e, to be — In
+Extend the length function to subsets of E by summation, so that 1(X) = — In w (X). (Clearly,
+these "lengths" are merely weights which combine additively rather than multiplicatively.
+Even so, they will prove to be a convenient notational and conceptual aid.)
+Define L = 1(X1) = — In w (Xi). Let C = (el, e2, • • • , er) be any circuit in E; here,
+each ei = {vi_1, vi} is an edge, and yr = vo. Define do = 0, and dk = Eik.=1 1(ei) for
+1 < k < r. Call a directed edge ek = (vk_i, vk) of C a pier if there exists an integer h with
+dk_1 < hL/2 < dk. We make two observations about piers. First, the circuit C is completely
+determined by the start vertex vo and the set of all piers. This is because the total length of
+edges in C which form a span between two consecutive piers is strictly less than L/2. Thus,
+the existence of two distinct spans between consecutive piers would imply the existence of a
+circuit of length less than L, and hence of a nontrivial closed subgraph of weight greater than
+e-L = w (Xi); this would contradict the assumption that X1 is maximal. Second, the total
+number of piers in C is at most 261, I L = 21(C)I L. Intuitively, the role of piers is to provide
+a compact encoding of circuits.
+Now suppose a > 0, and let X c E be a general closed subgraph with 1(X) < a L.
+Decompose X into its connected components; each of these components is Eulerian and
+hence can be regarded as a circuit with specified start vertex. Encode each component of X
+as a sequence consisting of the start vertex of the circuit followed by the piers of the circuit in
+sequence. Encode X itself by concatenating the codes for the various components; note that
+X is completely determined by the code so formed. Since each connected component of X
+has length at least L, the total number of vertices in the code (which is equal to the number of
+components) is at most l(X)/L = a. Furthermore, the total number of directed edges in the
+code (which is the total number of piers) is at most 2/(X)/ L = 2a. These observations yield
+an upper bound on the number of distinct codes for closed X with 1(X) < a L. The number of
+ways of selecting a sequence of at most a distinct vertices is bounded by na; that of selecting
+a sequence of at most 2a distinct directed edges by (2m)2"; that of interleaving the vertex and
+edge sequences by 23'. Thus the number of distinct codes, and hence the number of closed X
+with 1(X) < a L, is bounded above by (32nm2)".
+Now consider the subsequence X0, X1, • • • , Xk-i, consisting of the k closed subgraphs
+of greatest weight (i.e., shortest length), and let a = /(Xk_i )/L. Then the coding argument
+implies (32nm2)a > k. On the other hand, from the definition of a, and using the bound on
+w (X1) guaranteed in the statement of the lemma,
+Combining these two inequalities we obtain w (Xk_ ) < lc-1, and hence
+S 1
+2'1
+= w(Xk_i) <Ek < E _k.
+k=1
+k=1
+k=1
+By a well-known asymptotic result [21, p. 74], the latter sum is bounded by m for all sufficiently
+large m; indeed it is enough that m > 3. The lemma holds trivially for m < 3.
+❑
+6. Completeness results. In this paper we have restricted our attention to the ferromag-
+netic case of the Ising model; moreover we have contented ourselves with solutions which
+are approximate only. The results of this section aim to justify these apparently limited goals.
+Since we are concerned here with negative results, it will be an advantage to work with a
+simplified version of the Ising problem.
+(32nm2)" <
+1
+1
+w (Xi )a
+w(Xk-1)
+
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+APPROXIMATION ALGORITHMS FOR THE ISING MODEL
+1113
+INSTANCE: A symmetric matrix (
+: i, j E [n]) with entries in { —1, 0, +1}, and a natural
+number, 8, presented in unary notation.
+OUTPUT: The partition function
+Z = Z(vii, =
+where H(a) =
+z—{i,j)EEVsio-so-i, and the sum is over a E {— 1, +1}n. (As
+usual, E is the set of pairs {i,
+with Vii 0 0.)
+We refer to the problem in this form as ISING. The main points to note are that the external
+field is zero, and that powers of e have been replaced by powers of 2. The latter modification
+merely amounts to a scaling of s, and is made to avoid problems which would arise from the
+introduction of real arithmetic. The restrictions imposed on the various quantities appearing
+in an instance of ISING ensure that the output is a rational number whose numerator is a binary
+integer with a polynomially bounded number of digits, and whose denominator is a certain
+power of two. The output can thus be considered as a fixed-point binary number with an
+explicit "binary point." Adopting this viewpoint, it is not difficult to locate ISING within the
+class #P of combinatorial enumeration problems. (See Garey and Johnson's book [12, p. 167]
+for an explanation of #P and its completeness class.)
+The two problems which form the starting point for the intractability results of this section
+are MAXCUT:
+INSTANCE: An undirected graph G and a positive integer b.
+QUESTION: Is there a cut set in G of size b? That is to say, is there a partition of the vertex
+set of G into two subsets such that the number of edges which span the two
+subsets is at least b?
+and the related #MAxCuT:
+INSTANCE: An undirected graph G.
+OUTPUT: The number of cut sets in G of maximum size.
+The following is a slight extension of a known result.
+LEMMA 13. MAxCuT is NP-complete, and #MAxCur is #P-complete.
+Proof. NP-completeness of MAxCUT is proved in [13]. The reductions used there are
+not "parsimonious" [12, p. 169], and hence do not immediately imply #P-completeness of
+#MAxCUT. As usual, however, the reductions (given in the proofs of Theorems 1.1 and 1.2 of
+that paper) can be modified, without great difficulty, to yield parsimonious versions. For those
+who wish to follow the argument in detail, the necessary modifications are presented below.
+In [13, Thm. 1.1], new variables {ei : 1 < i < m} should be introduced, and the definition
+of the clause set S' amended to read
+(as), (bs), (cs), (di), (es),
+(as V bs), (as V cs),
+, (di V es),
+(—as V —bs), (—as V —cs),
+,
+V -vs)} ,
+where each ellipsis stands for seven omitted disjunctions. Note that there are 26 clauses in S'
+arising from the ith clause, (ai v bs v cs), of S. If the ith clause of S is satisfied, then there
+is precisely one way to choose truth values for the variables di and es so that 20 of these 26
+clauses of S' are satisfied. Conversely, if the ith clause of S is not satisfied then, however di
+
+1114
+MARK JERRUM AND ALISTAIR SINCLAIR
+Downloaded 07/22/16 to 193.205.163.26. Redistribution subject to SIAM license or copyright; see http://www.siam.org/journals/ojsa.php
+and ei are chosen, at most 19 of the 26 clauses can be satisfied. Thus, setting k = 20m, the
+original proof goes through. Note that the reduction is now parsimonious.
+In [13, Thm. 1.2], duplicate clauses should be removed by replacing each clause C; =
+(ui v vi) by the seven clauses
+(ui v
+v ci), (ui v
+(—ui v di), (ci v —di), (-'ci v di), and (ci v v1),
+where ci and di are new variables. For a given assignment to ui and vi, one must set ci = di =
+ui in order to maximise the total number of satisfied clauses within these seven. Now, if C; is
+satisfied then all seven clauses may be satisfied; however, if C; is not satisfied then at most six
+of the clauses may be satisfied. The existing proof goes through with k set to k' 6q. Again,
+the modified reduction is parsimonious. ❑
+The first theorem of the section presents evidence that our restriction to the ferromagnetic
+case of the Ising model cannot be relaxed.
+THEOREM 14. There can be no fpras for ISING unless RP = NP.
+RP is the class of decision problems which can be solved in polynomial time by a certain
+type of randomised algorithm which is allowed one-sided errors. (See [2, p. 138] for a precise
+definition.) It is widely conjectured that RP is strictly contained in NP. Thus Theorem 14 can
+be interpreted as strong evidence that no approximation algorithm exists for the Ising parti-
+tion function in the nonferromagnetic, or "spin-glass" case. Indeed, the existence of such an
+algorithm would imply, by virtue of Theorem 14, the existence of efficient randomised algo-
+rithms for such hard problems as testing satisfiability of a Boolean formula and the Travelling
+Salesman Problem.
+Proof of Theorem 14. Let G = ([n], E) be a graph and b a positive integer defining an
+instance of MAxCuT. Construct an instance of ISING by setting /3 = n, and Vij = —1 when
+{i, j e E. (As usual, Vi = 0 when {i, j} s21 E.) Each spin-vector a partitions [n] into
+two subsets, and hence defines a cut set of G: cut(a) = {{i, j} E E : o-io-j = — 1 }. Note
+that H (a) = m — 21cut(cr)I, where m = lEl. Let Nk denote the number of spin vectors
+a for which I cut(o-)I = k. Then the simplified partition function can be re-expressed as
+Z = Ekin 0 Nkg(2k—m).
+3(2b—m
+2
+) = 2n(2b—m);
+Note that if a cut set of size b exists in G then Z >
+in contrast,
+if no such cut set exists, Z < 2n2p(2b-2-m) = 2—n2n(2b—m) Now the existence of an fpras
+for ISING would imply that these two cases could be distinguished in polynomial time, with
+failure probability at most 4 ; in other words, MAxCuT E BPP. From this it would follow—
+since MAxCuT is NP-complete and BPP is closed under polynomial time reductions—that
+NP c BPP. However, the inclusion NP c BPP entails RP = NP [22]. ❑
+Our final theorem states that ISING is a complete problem for the class #P. Thus a poly-
+nomial time algorithm which solves it exactly would yield similar algorithms for a range of
+presumably intractable problems, such as counting the number of satisfying assignments of a
+Boolean formula and counting optimal Travelling Salesman tours. We should therefore not be
+too disappointed that we have obtained only approximation algorithms for the Ising problem.
+THEOREM 15. ISING is #P-complete even when the matrix V11 is nonnegative (i.e., even
+in the ferromagnetic case).
+Proof. We present an easy polynomial-time (Turing) reduction from #MAxCuT. Let
+G = ([n], E) be an instance of #MAxCur. Set Vii = +1 when [i, j] E E, and Vi = 0 other-
+wise. Note that H (a) = 2Icut(a) I — m. With Nk as before we have Z = Ekm 0 Nk2/3(m-2k) =
+2,6'n p(4-13), where p(x) = Ik Nkxk is a polynomial of degree m. Suppose that the value of p
+is known at the points 13 = 0, 1, . , m, i.e., at x = 1, 4-1, . , 4-m . Then the coefficients
+of p can be recovered in polynomial time from these values by interpolation. Using Newton's
+
+
